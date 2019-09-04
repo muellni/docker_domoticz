@@ -15,7 +15,7 @@ MAINTAINER Cedric Gatay <c.gatay@code-troopers.com>
 # compile &
 # remove git and tmp dirs
 
-ARG APP_HASH
+ENV APP_HASH=08c4722e0
 ARG VCS_REF
 ARG BUILD_DATE
 
