@@ -1,4 +1,4 @@
-FROM alpine:3.7
+FROM alpine:edge
 MAINTAINER Sylvain Desbureaux <sylvain@desbureaux.fr> #Original creator of this Dockerfile
 MAINTAINER Cedric Gatay <c.gatay@code-troopers.com>
 
@@ -29,18 +29,20 @@ LABEL org.label-schema.vcs-ref=$APP_HASH \
 
 RUN apk add --no-cache \
 		git \
-		python3-dev \
 		build-base cmake \
+		ninja \
+		python3 python3-dev \
 		boost-dev \
 		boost-thread \
 		boost-system \
 		boost-date_time \
 		sqlite sqlite-dev \
 		curl libcurl curl-dev \
-		libssl1.0 libressl-dev \
+		libressl libressl-dev \
 		libusb libusb-dev \
 		libusb-compat libusb-compat-dev \
-		lua5.2-dev \
+		lua5.3-libs lua5.3-dev \
+		openzwave openzwave-dev \
 		minizip-dev \
 		mosquitto-dev \
 		coreutils \
@@ -48,47 +50,52 @@ RUN apk add --no-cache \
 		zlib zlib-dev \
 		udev eudev-dev \
 		linux-headers && \
-	# Build OpenZwave
-	git clone --depth 2 https://github.com/OpenZWave/open-zwave.git /src/open-zwave && \
-	ln -s /src/open-zwave /src/open-zwave-read-only && \
-	cd /src/open-zwave && \
-	make && \
- 	make \
-		instlibdir=usr/lib \
-		pkgconfigdir="usr/lib/pkgconfig/" \
-		PREFIX=/usr \
-		sysconfdir=etc/openzwave \
-	install && \
-	cd / && \
-	rm -rf /src/open-zwave && \
+        # Link lua for domoticz build
+        ln -s /usr/lib/liblua-5.3.so.0 /usr/lib/liblua-5.3.so && \
+        # Cereal
+        git clone https://github.com/USCiLab/cereal.git /src/cereal && \
+        cd /src/cereal && \
+        mkdir build && \
+        cd build && cmake -G "Ninja" .. \
+          -DCMAKE_INSTALL_PREFIX=/usr \
+          -DSKIP_PORTABILITY_TEST=ON \
+          -DTHREAD_SAFE=ON \
+          -DWITH_WERROR=OFF && \
+        ninja && ninja install && \
+        cd / && \
+        rm -rf /src/cereal && \
 	# Build Domoticz
-	git clone https://github.com/domoticz/domoticz.git /src/domoticz && \
+	git clone https://github.com/muellni/domoticz.git /src/domoticz && \
 	cd /src/domoticz && \
 	git reset --hard ${APP_HASH} && \
-	cmake \
+	cmake -G "Ninja" \
 	 	-DBUILD_SHARED_LIBS=True \
 	 	-DCMAKE_BUILD_TYPE=Release \
 		-DCMAKE_INSTALL_PREFIX=/opt/domoticz \
-		-DOpenZWave=/usr/lib/libopenzwave.so \
-		-DUSE_BUILTIN_LUA=OFF \
+		-DUSE_LUA_STATIC=OFF \
 		-DUSE_BUILTIN_MINIZIP=OFF \
+		-DUSE_STATIC_BOOST=False \
 		-DUSE_BUILTIN_MQTT=OFF \
 		-DUSE_BUILTIN_SQLITE=OFF \
 		-DUSE_STATIC_OPENZWAVE=OFF \
 		-Wno-dev && \
-	make && \
-	make install && \
+	ninja && \
+	ninja install && \
 	rm -rf /src/domoticz/ && \
 	# Cleanup
 	apk del \ 
 		git \
+		ninja \
 		build-base cmake \
+		python3-dev \
 		boost-dev \
 		sqlite-dev \
 		curl-dev \
 		libressl-dev \
 		libusb-dev \
 		libusb-compat-dev \
+		lua5.3-dev \
+		openzwave-dev \
 		coreutils \
 		zlib-dev \
 		eudev-dev \
